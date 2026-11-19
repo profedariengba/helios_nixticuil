@@ -2,23 +2,37 @@
 <html lang="es">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Helios en el Nixticuil</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>Helios en el Nixticuil (móvil)</title>
 <style>
-  html, body { margin: 0; height: 100%; overflow: hidden; background: #2d1b4e; font-family: sans-serif; }
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #2d1b4e; font-family: sans-serif;
+               touch-action: none; overscroll-behavior: none; user-select: none; -webkit-user-select: none;
+               -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent; }
 
   /* Contador de tacos (arriba a la izquierda) */
-  #hud { position: fixed; top: calc(12px + env(safe-area-inset-top, 0px)); left: 12px; padding: 6px 14px; border-radius: 10px;
-         background: rgba(50,20,60,.6); color: #fff; font-size: 24px; font-weight: bold; }
+  #hud { position: fixed; top: calc(12px + env(safe-area-inset-top, 0px)); left: calc(12px + env(safe-area-inset-left, 0px)); padding: 6px 14px; border-radius: 10px;
+         background: rgba(50,20,60,.6); color: #fff; font-size: clamp(16px, 4.6vw, 24px); font-weight: bold; }
 
   /* Pantalla de victoria (oculta hasta recoger todos los tacos) */
-  #inicio, #fin { position: fixed; inset: 0; display: none; flex-direction: column; align-items: center; justify-content: center; gap: 14px;
-         background: rgba(60,20,60,.6); color: #fff; text-align: center; font-size: 22px; }
-  #inicio h1, #fin h1 { margin: 0; font-size: 56px; }
+  #inicio, #fin { z-index: 10; padding: 20px; box-sizing: border-box; position: fixed; inset: 0; display: none; flex-direction: column; align-items: center; justify-content: center; gap: 14px;
+         background: rgba(60,20,60,.6); color: #fff; text-align: center; font-size: clamp(16px, 4.5vw, 22px); }
+  #inicio h1, #fin h1 { margin: 0; font-size: clamp(28px, 9vw, 56px); }
   #inicio { display: flex; }                            /* la pantalla de inicio se ve desde el principio */
   #fin .botones { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; }
-  #inicio button, #fin button, #reiniciar { font-size: 22px; padding: 10px 32px; border: 0; border-radius: 12px; background: #ff8c42; color: #fff; cursor: pointer; }
-  #reiniciar { position: fixed; top: calc(12px + env(safe-area-inset-top, 0px)); right: 12px; display: none; padding: 8px 18px; font-size: 18px; }
+  #inicio button, #fin button, #reiniciar { font-size: 22px; padding: 14px 32px; min-height: 48px; border: 0; border-radius: 12px; background: #ff8c42; color: #fff; cursor: pointer; }
+  #reiniciar { position: fixed; top: calc(12px + env(safe-area-inset-top, 0px)); right: calc(12px + env(safe-area-inset-right, 0px)); z-index: 6; display: none; padding: 10px 18px; font-size: 18px; }
+
+  /* Controles táctiles: joystick a la izquierda y botón de salto a la derecha (solo en pantallas táctiles) */
+  #controles { display: none; }
+  @media (pointer: coarse) { #controles { display: block; } }
+  #joystick { position: fixed; z-index: 5; width: 130px; height: 130px; border-radius: 50%;
+              left: calc(24px + env(safe-area-inset-left, 0px)); bottom: calc(28px + env(safe-area-inset-bottom, 0px));
+              background: rgba(255,255,255,.18); border: 2px solid rgba(255,255,255,.45); }
+  #palanca { position: absolute; left: 50%; top: 50%; width: 56px; height: 56px; margin: -28px 0 0 -28px;
+             border-radius: 50%; background: rgba(255,200,140,.85); }
+  #saltar { position: fixed; z-index: 5; width: 92px; height: 92px; border-radius: 50%;
+            right: calc(24px + env(safe-area-inset-right, 0px)); bottom: calc(40px + env(safe-area-inset-bottom, 0px));
+            border: 2px solid rgba(255,255,255,.55); background: rgba(255,140,66,.75); color: #fff; font-size: 18px; font-weight: bold; }
 </style>
 </head>
 <body>
@@ -31,9 +45,13 @@
 -->
 <div id="hud">Tacos: 0 / 26</div>
 <button id="reiniciar">Reiniciar</button>
+<div id="controles">
+  <div id="joystick"><div id="palanca"></div></div>
+  <button id="saltar">Saltar</button>
+</div>
 <div id="inicio">
   <h1>Helios en el Nixticuil</h1>
-  <div>Camina con WASD o las flechas · Salta con la barra espaciadora<br>Recoge todos los tacos</div>
+  <div>Mueve el joystick para caminar · Toca "Saltar" para brincar<br>(con teclado: WASD o flechas y barra espaciadora)<br>Recoge todos los tacos</div>
   <button id="iniciar">Iniciar aventura</button>
 </div>
 <div id="fin">
@@ -101,7 +119,7 @@ function iniciarJuego() {
   /* ============================================================
      2. ESCENA, CÁMARA Y HERRAMIENTAS PARA CONSTRUIR
      ============================================================ */
-  const renderizador = new THREE.WebGLRenderer({ antialias: true });
+  const renderizador = new THREE.WebGLRenderer({ antialias: devicePixelRatio < 2, powerPreference: 'high-performance' });
   const escena = new THREE.Scene();
   const camara = new THREE.PerspectiveCamera(60, 1, .1, 100);
 
@@ -120,9 +138,14 @@ function iniciarJuego() {
   escena.add(sol);
   camara.position.set(0, CAMARA_ALTURA, CAMARA_DISTANCIA);
 
+  let zoomCamara = 1;                                  // en pantallas verticales la cámara se aleja y abre su ángulo
   function ajustarPantalla() {
+    renderizador.setPixelRatio(Math.min(devicePixelRatio, 2));   // nítido sin gastar de más la batería
     renderizador.setSize(innerWidth, innerHeight);
     camara.aspect = innerWidth / innerHeight;
+    const vertical = camara.aspect < 1;
+    camara.fov = vertical ? 70 : 60;
+    zoomCamara = vertical ? 1.35 : 1;
     camara.updateProjectionMatrix();
   }
   onresize = ajustarPantalla;
@@ -326,6 +349,44 @@ function iniciarJuego() {
   onkeyup   = e => teclas[e.key.toLowerCase()] = false;
   const presionada = (...nombres) => nombres.some(nombre => teclas[nombre]);
 
+  // Controles táctiles: el joystick y el botón escriben en `teclas`, igual que el teclado.
+  const joystick = document.getElementById('joystick');
+  const palanca = document.getElementById('palanca');
+  let dedoJoystick = null;                                  // el dedo que maneja el joystick
+
+  function moverJoystick(e) {
+    const caja = joystick.getBoundingClientRect();
+    const limite = caja.width / 2;
+    let dx = e.clientX - (caja.left + limite);
+    let dy = e.clientY - (caja.top + limite);
+    const largo = Math.hypot(dx, dy);
+    if (largo > limite) { dx *= limite / largo; dy *= limite / largo; }
+    palanca.style.transform = `translate(${dx}px, ${dy}px)`;
+    const zonaMuerta = limite * .25;                        // un toque pequeño no mueve a Helios
+    teclas.a = dx < -zonaMuerta;  teclas.d = dx > zonaMuerta;
+    teclas.w = dy < -zonaMuerta;  teclas.s = dy > zonaMuerta;
+  }
+  function soltarJoystick(e) {
+    if (e.pointerId !== dedoJoystick) return;
+    dedoJoystick = null;
+    palanca.style.transform = '';
+    teclas.a = teclas.d = teclas.w = teclas.s = false;
+  }
+  joystick.addEventListener('pointerdown', e => {
+    if (!jugando) return;
+    dedoJoystick = e.pointerId;
+    joystick.setPointerCapture(e.pointerId);
+    moverJoystick(e);
+  });
+  joystick.addEventListener('pointermove', e => { if (e.pointerId === dedoJoystick) moverJoystick(e); });
+  joystick.addEventListener('pointerup', soltarJoystick);
+  joystick.addEventListener('pointercancel', soltarJoystick);
+
+  const botonSaltar = document.getElementById('saltar');
+  botonSaltar.addEventListener('pointerdown', () => { if (jugando) teclas[' '] = true; });
+  ['pointerup', 'pointercancel', 'pointerleave'].forEach(tipo =>
+    botonSaltar.addEventListener(tipo, () => { teclas[' '] = false; }));
+
 
   /* ============================================================
      6. LO QUE PASA EN CADA CUADRO
@@ -435,7 +496,7 @@ function iniciarJuego() {
   // La cámara va detrás y arriba de Helios, con suavidad.
   const destinoCamara = new THREE.Vector3();
   function seguirConCamara() {
-    destinoCamara.set(posicion.x, posicion.y + CAMARA_ALTURA, posicion.z + CAMARA_DISTANCIA);
+    destinoCamara.set(posicion.x, posicion.y + CAMARA_ALTURA * zoomCamara, posicion.z + CAMARA_DISTANCIA * zoomCamara);
     camara.position.lerp(destinoCamara, CAMARA_SUAVIDAD);
     camara.lookAt(posicion);
   }
